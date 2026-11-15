@@ -5,10 +5,13 @@ dns.setServers(["8.8.8.8", "1.1.1.1"]);
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+
+import { env } from "./config/env.js";
 import { connectDatabase } from "./config/database.js";
+import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
-const PORT = Number(process.env.PORT) || 5000;
+const PORT = env.PORT;
 
 app.use(cors());
 app.use(express.json());
@@ -20,6 +23,8 @@ app.get("/api/health", (_req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+app.use(errorHandler);
 
 async function startServer() {
   try {
