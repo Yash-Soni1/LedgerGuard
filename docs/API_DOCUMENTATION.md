@@ -10,11 +10,13 @@ This document describes the HTTP API exposed by the LedgerGuard backend.
 http://localhost:5000
 ```
 
+**API Version:** v1
+
 **API Format:** JSON
 
 **Backend Framework:** Express.js
 
-**Status:** Initial API implementation.
+**Status:** Authentication and health-check endpoints implemented.
 
 ---
 
@@ -47,27 +49,27 @@ The exact response fields depend on the endpoint.
 
 ## 3. Implemented Endpoints
 
-### Health Check
+### 3.1 Health Check
 
-Checks whether the LedgerGuard backend API is responding.
+Checks whether the LedgerGuard API is responding.
 
 | Property | Value |
 |---|---|
 | Method | GET |
-| Endpoint | `/api/health` |
+| Endpoint | `/api/v1/health` |
 | Authentication | Not required |
 | Status | Implemented |
 
 **Request:**
 
 ```http
-GET /api/health
+GET /api/v1/health
 ```
 
 **Example using PowerShell:**
 
 ```powershell
-Invoke-RestMethod http://localhost:5000/api/health
+Invoke-RestMethod http://localhost:5000/api/v1/health
 ```
 
 **Successful response:**
@@ -75,41 +77,185 @@ Invoke-RestMethod http://localhost:5000/api/health
 ```json
 {
   "success": true,
-  "message": "LedgerGuard API is running",
-  "timestamp": "2026-11-15T07:14:03.399Z"
+  "message": "LedgerGuard API v1 is running",
+  "version": "v1",
+  "timestamp": "2026-11-16T16:59:47.976Z"
 }
 ```
 
 The timestamp is generated dynamically by the backend.
 
-### Frontend Proxy Health Check
+### 3.2 User Registration
 
-The Next.js frontend forwards this request to the backend through its configured rewrite.
+Creates a new user account and returns a JWT authentication token.
+
+| Property | Value |
+|---|---|
+| Method | POST |
+| Endpoint | `/api/v1/auth/register` |
+| Authentication | Not required |
+| Success Status | 201 |
+| Status | Implemented |
+
+**Request body:**
+
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "SecurePass123"
+}
+```
+
+**Successful response:**
+
+```json
+{
+  "success": true,
+  "message": "Registration successful",
+  "data": {
+    "user": {
+      "id": "USER_ID",
+      "name": "John Doe",
+      "email": "john@example.com"
+    },
+    "token": "JWT_TOKEN"
+  }
+}
+```
+
+**Possible error statuses:**
+
+- `400` — Invalid registration data.
+- `409` — Email is already registered.
+
+Passwords are hashed using bcrypt before being stored in the database.
+
+### 3.3 User Login
+
+Authenticates an existing user and returns a JWT authentication token.
+
+| Property | Value |
+|---|---|
+| Method | POST |
+| Endpoint | `/api/v1/auth/login` |
+| Authentication | Not required |
+| Success Status | 200 |
+| Status | Implemented |
+
+**Request body:**
+
+```json
+{
+  "email": "john@example.com",
+  "password": "SecurePass123"
+}
+```
+
+**Successful response:**
+
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "user": {
+      "id": "USER_ID",
+      "name": "John Doe",
+      "email": "john@example.com"
+    },
+    "token": "JWT_TOKEN"
+  }
+}
+```
+
+**Possible error statuses:**
+
+- `400` — Invalid login data.
+- `401` — Invalid email or password.
+
+### 3.4 Get Current User
+
+Returns the profile of the currently authenticated user.
 
 | Property | Value |
 |---|---|
 | Method | GET |
-| Endpoint | `/api/backend/health` |
-| Authentication | Not required |
+| Endpoint | `/api/v1/auth/me` |
+| Authentication | Required |
+| Success Status | 200 |
 | Status | Implemented |
 
-**Request:**
+**Request headers:**
 
 ```http
-GET /api/backend/health
+Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
-**Example:**
+**Example using PowerShell:**
 
 ```powershell
-Invoke-RestMethod http://localhost:3000/api/backend/health
+$headers = @{
+    Authorization = "Bearer YOUR_JWT_TOKEN"
+}
+
+Invoke-RestMethod `
+    -Uri "http://localhost:5000/api/v1/auth/me" `
+    -Headers $headers
 ```
 
-This verifies communication through the frontend proxy.
+Replace `YOUR_JWT_TOKEN` with the token returned by registration or login.
+
+**Successful response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "USER_ID",
+    "name": "John Doe",
+    "email": "john@example.com"
+  }
+}
+```
+
+**Possible error statuses:**
+
+- `401` — Authorization required or invalid/expired token.
+- `404` — User not found.
+
+The JWT authentication middleware verifies the token before allowing access to the user's profile.
 
 ---
 
-## 4. Error Handling
+## 4. Authentication and Security
+
+LedgerGuard currently uses JSON Web Tokens (JWT) for authentication.
+
+Implemented security measures include:
+
+- Password hashing using bcrypt with 12 salt rounds.
+- JWT-based authentication.
+- Configurable JWT expiration.
+- JWT secret validation through environment configuration.
+- Protected routes using authentication middleware.
+- Zod-based request validation.
+- Normalized email addresses.
+- Duplicate email detection.
+- Password hashes excluded from default user queries.
+
+**Environment variables:**
+
+| Variable | Description |
+|---|---|
+| `JWT_SECRET` | Secret used to sign and verify JWTs |
+| `JWT_EXPIRES_IN` | JWT expiration duration |
+
+The JWT secret must remain private and must never be committed to the repository.
+
+---
+
+## 5. Error Handling
 
 The backend uses centralized Express error middleware.
 
@@ -122,40 +268,45 @@ Expected error response structure:
 }
 ```
 
+The backend uses appropriate HTTP status codes for application errors.
+
 Internal error details are logged on the server rather than exposed in production responses.
 
 ---
 
-## 5. Planned API Modules
+## 6. Planned API Modules
 
-The following endpoints are planned and are not yet implemented.
+The following modules contain functionality that is planned but not yet implemented.
 
-| Module | Planned Functionality |
-|---|---|
-| Authentication | Register, login, logout |
-| Users | User profile and account management |
-| Organizations | Create and manage organizations |
-| Members | Invitations and role management |
-| Usage | Submit and retrieve usage events |
-| Billing | Billing and usage summaries |
-| Ledger | Financial transactions and balances |
-| Analytics | Historical usage and dashboard metrics |
+| Module | Planned Functionality | Status |
+|---|---|---|
+| Authentication | Register and login implemented; logout planned | Partially implemented |
+| Users | User profile and account management | Planned |
+| Organizations | Create and manage organizations | Planned |
+| Members | Invitations and role management | Planned |
+| Usage | Submit and retrieve usage events | Planned |
+| Billing | Billing and usage summaries | Planned |
+| Ledger | Financial transactions and balances | Planned |
+| Analytics | Historical usage and dashboard metrics | Planned |
 
-Detailed request and response specifications will be added when these endpoints are implemented.
+Additional request and response specifications will be documented as new endpoints are implemented.
 
 ---
 
-## 6. API Development Guidelines
+## 7. API Development Guidelines
 
-- Validate incoming request data.
+- Validate all incoming request data.
 - Use appropriate HTTP status codes.
 - Authenticate protected endpoints.
 - Derive tenant context from verified authorization.
 - Return consistent JSON responses.
 - Avoid exposing internal errors or secrets.
+- Keep authentication and authorization logic separate from business logic.
 - Test endpoints before documenting them as implemented.
+- Maintain API versioning for future compatibility.
 
 ---
 
-**Last updated:** November 15, 2026
+**Last updated:** November 17, 2026
+
 **Project:** LedgerGuard

@@ -17,6 +17,14 @@ const envSchema = z.object({
   MONGODB_URI: z
     .string()
     .min(1, "MONGODB_URI is required"),
+
+  JWT_SECRET: z
+    .string()
+    .min(1, "JWT_SECRET is required"),
+
+  JWT_EXPIRES_IN: z
+    .string()
+    .default("1h"),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
