@@ -124,12 +124,12 @@ This architecture is a development target. Individual components will be documen
 
 ### Authentication and Organizations
 
-- [ ] User registration and login.
-- [ ] Password hashing.
-- [ ] JWT authentication.
-- [ ] Organization management.
-- [ ] Membership and role management.
-- [ ] Tenant-aware authentication middleware.
+- [x] User registration and login.
+- [x] Password hashing.
+- [x] JWT authentication.
+- [x] Organization management.
+- [x] Membership and role management.
+- [x] Tenant-aware authentication middleware.
 
 ### Multi-Tenant Architecture
 
