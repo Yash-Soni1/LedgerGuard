@@ -8,8 +8,8 @@ The project focuses on building a scalable backend architecture with idempotent 
 
 > **Development Status:** Active Development
 > **Project Timeline:** November 15 – December 9, 2026
-> **Current Milestone:** Foundation and Authentication Completed
-> **Current Progress:** Day 3 of 25
+> **Current Milestone:** Organization Management and Multi-Tenant Foundations
+> **Current Progress:** Day 4 of 25
 
 ---
 
@@ -90,87 +90,94 @@ The initial MVP will simulate billing operations. It will not process real payme
 
 ### 1. Currently Implemented Architecture
 
-The current implementation establishes communication between the Next.js frontend and Express backend, with authentication and database integration.
+The current implementation establishes communication between the Next.js frontend and Express backend, with authentication, organization management, membership authorization, and database integration.
 
 ```text
-                 Next.js Frontend
-                        |
-                        v
-                Frontend API Proxy
-                        |
-                        v
-                  Express API
-                        |
-                        v
-                 Request Logger
-                        |
-                        v
-                  API Router v1
-                        |
-              +---------+---------+
-              |                   |
-              v                   v
-         Health Routes       Auth Routes
-                                  |
-                                  v
-                         Authentication
-                            Middleware
-                                  |
-                                  v
-                         Auth Controller
-                                  |
-                                  v
-                          Auth Service
-                                  |
-                         +--------+--------+
-                         |                 |
-                         v                 v
-                   Password Service    JWT Service
-                         |
-                         v
-                     User Model
-                         |
-                         v
-                       MongoDB
+                    Next.js Frontend
+                           |
+                           v
+                   Frontend API Proxy
+                           |
+                           v
+                      Express API
+                           |
+                           v
+                     Request Logger
+                           |
+                           v
+                      API Router v1
+                           |
+          +----------------+----------------+
+          |                |                |
+          v                v                v
+     Health Routes    Auth Routes    Organization Routes
+                           |                |
+                           v                v
+                   Authentication     Authentication
+                      Middleware        Middleware
+                           |                |
+                           v                v
+                    Auth Controller  Organization Controller
+                           |                |
+                           v                v
+                     Auth Service    Organization Service
+                           |                |
+                  +--------+--------+       |
+                  |                 |       |
+                  v                 v       v
+             Password Service   JWT Logic  MongoDB
+                  |                         |
+                  v                         |
+              User Model                    |
+                                            |
+                                  +---------+---------+
+                                  |                   |
+                                  v                   v
+                            Organization       Organization
+                                Model             Membership
 ```
 
-Centralized error handling, environment validation, and database configuration support the backend.
+Centralized error handling, environment validation, request logging, and database configuration support the backend.
+
+Organization creation uses a MongoDB transaction to create the organization and its initial owner membership atomically.
+
+Organization access middleware checks membership, allowed roles, and organization status before granting access to protected organization-scoped routes.
 
 ### 2. Planned Target Architecture
 
 The following architecture represents the intended future system. These components will be implemented progressively.
 
 ```text
-                 Next.js Dashboard
-                        |
-                        v
-                   Express API
-                        |
-                        v
-                Authentication Layer
-                        |
-                        v
-                  Tenant Context
-                        |
-                        v
-                   Service Layer
-                        |
-          +-------------+-------------+
-          |             |             |
-          v             v             v
-      Tenant DB       Redis       Ledger Engine
-      Registry        Locks       & Transactions
-          |             |             |
-          +-------------+-------------+
-                        |
-                        v
-                     MongoDB
-                        |
-                        v
-              Analytics & Real-time
+                   Next.js Dashboard
+                          |
+                          v
+                      Express API
+                          |
+                          v
+                  Authentication Layer
+                          |
+                          v
+                     Tenant Context
+                          |
+                          v
+                     Service Layer
+                          |
+           +--------------+--------------+
+           |              |              |
+           v              v              v
+       Tenant DB        Redis       Ledger Engine
+       Registry         Locks       & Transactions
+           |              |              |
+           +--------------+--------------+
+                          |
+                          v
+                        MongoDB
+                          |
+                          v
+                 Analytics & Real-time
 ```
 
-The target architecture will introduce dynamic tenant database management, distributed locking, idempotent billing, financial transactions, and real-time analytics.
+The target architecture will introduce dynamic tenant database management, distributed locking, idempotent billing, financial transactions, cryptographic verification, and real-time analytics.
 
 ---
 
@@ -209,13 +216,23 @@ The target architecture will introduce dynamic tenant database management, distr
 
 ### 3. Organizations and Tenant Management
 
-- [ ] Organization data model.
-- [ ] Organization creation API.
-- [ ] Organization ownership.
-- [ ] User-to-organization membership.
-- [ ] Organization roles and permissions.
-- [ ] Tenant-aware authentication.
-- [ ] Tenant isolation middleware.
+- [x] Implement Organization data model.
+- [x] Implement OrganizationMembership data model.
+- [x] Add organization creation validation using Zod.
+- [x] Implement organization creation API.
+- [x] Automatically assign the creator the owner role.
+- [x] Implement atomic organization and membership creation using MongoDB transactions.
+- [x] Enforce unique organization slugs.
+- [x] Enforce unique user-organization memberships.
+- [x] Implement organization membership middleware.
+- [x] Implement organization role checks for owner, admin, and member.
+- [x] Validate organization IDs.
+- [x] Verify organization status before granting access.
+- [x] Test unauthorized and cross-organization access.
+- [x] Verify duplicate slug handling.
+- [x] Verify TypeScript compilation and production build.
+- [x] Update API and database documentation.
+- [x] Create implementation Git commit.
 
 ### 4. Multi-Tenant Database Architecture
 
@@ -223,6 +240,7 @@ The target architecture will introduce dynamic tenant database management, distr
 - [ ] Tenant connection registry.
 - [ ] Connection reuse and lifecycle management.
 - [ ] Tenant database selection.
+- [ ] Tenant-aware database models.
 - [ ] Tenant isolation testing.
 
 ### 5. Billing Engine
@@ -232,7 +250,7 @@ The target architecture will introduce dynamic tenant database management, distr
 - [ ] Idempotency service.
 - [ ] Redis distributed locking.
 - [ ] Financial ledger.
-- [ ] Atomic database transactions.
+- [ ] Atomic database transactions for billing operations.
 - [ ] Duplicate billing prevention.
 - [ ] Ledger consistency testing.
 
@@ -260,7 +278,7 @@ The target architecture will introduce dynamic tenant database management, distr
 
 ## Project Structure
 
-The following represents the current project structure, including the implemented authentication and backend architecture.
+The following represents the current backend structure after the Day 4 implementation.
 
 ```text
 LedgerGuard/
@@ -281,30 +299,37 @@ LedgerGuard/
 |   |   |
 |   |   |-- controllers/
 |   |   |   |-- auth.controller.ts
+|   |   |   |-- organization.controller.ts
 |   |   |
 |   |   |-- middleware/
 |   |   |   |-- auth.middleware.ts
 |   |   |   |-- errorHandler.ts
 |   |   |   |-- requestLogger.ts
+|   |   |   |-- organization.middleware.ts
 |   |   |
 |   |   |-- models/
 |   |   |   |-- User.ts
+|   |   |   |-- Organization.ts
+|   |   |   |-- OrganizationMembership.ts
 |   |   |
 |   |   |-- routes/
 |   |   |   |-- v1/
 |   |   |       |-- auth.routes.ts
 |   |   |       |-- health.routes.ts
+|   |   |       |-- organization.routes.ts
 |   |   |       |-- index.ts
 |   |   |
 |   |   |-- services/
 |   |   |   |-- auth.service.ts
 |   |   |   |-- password.service.ts
+|   |   |   |-- organization.service.ts
 |   |   |
 |   |   |-- utils/
 |   |   |   |-- AppError.ts
 |   |   |
 |   |   |-- validators/
 |   |   |   |-- auth.validators.ts
+|   |   |   |-- organization.validators.ts
 |   |   |
 |   |   |-- server.ts
 |   |
@@ -350,11 +375,9 @@ Make sure the following are installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone YOUR_REPOSITORY_URL
+git clone https://github.com/Yash-Soni1/LedgerGuard.git
 cd LedgerGuard
 ```
-
-Replace `YOUR_REPOSITORY_URL` with your GitHub repository URL.
 
 ### 2. Install Frontend Dependencies
 
@@ -375,12 +398,13 @@ npm install
 
 Create a `.env` file inside the `backend/` directory.
 
-Example configuration:
+Use the following configuration template and provide your own values:
 
 ```env
-NODE_ENV=development
 PORT=5000
 
+MONGODB_USERNAME=your_mongodb_username
+MONGODB_PASSWORD=your_mongodb_password
 MONGODB_URI=your_mongodb_connection_string
 
 JWT_SECRET=your_secure_random_secret_of_at_least_64_characters
@@ -389,7 +413,7 @@ JWT_EXPIRES_IN=1h
 
 **Important:**
 
-- Replace the MongoDB URI with your own connection string.
+- Replace the MongoDB values with your own connection details.
 - Generate a secure random JWT secret of at least 64 characters.
 - Never share or commit actual environment variables, database credentials, JWT secrets, or private cryptographic keys.
 - Keep `.env` private and use `.env.example` as the configuration template.
@@ -442,6 +466,7 @@ http://localhost:5000
 | POST | `/api/v1/auth/register` | Not required | Register a new user |
 | POST | `/api/v1/auth/login` | Not required | Authenticate an existing user |
 | GET | `/api/v1/auth/me` | Required | Retrieve current user profile |
+| POST | `/api/v1/organizations` | Required | Create an organization |
 
 ### Authentication
 
@@ -469,6 +494,21 @@ Authorization: Bearer YOUR_JWT_TOKEN
   "password": "SecurePass123"
 }
 ```
+
+### Organization Creation Example
+
+```json
+{
+  "name": "Acme Technologies",
+  "slug": "acme-technologies"
+}
+```
+
+A successful organization creation returns the organization details and automatically creates an owner membership for the authenticated user.
+
+Organization slugs must be unique. Attempting to create an organization with an existing slug returns a conflict response.
+
+The organization membership middleware is implemented and available for organization-scoped routes. It verifies membership, optional role permissions, and organization status.
 
 Registration and login return a JWT token that can be used to access protected endpoints.
 
@@ -501,7 +541,8 @@ The project follows a 25-day development schedule.
 | Day 1 | Foundation and frontend/backend integration | Completed |
 | Day 2 | API architecture, versioning and request logging | Completed |
 | Day 3 | Authentication and JWT authorization | Completed |
-| Days 4–5 | Organizations and tenant context | Upcoming |
+| Day 4 | Organization management and membership authorization | Completed |
+| Day 5 | Tenant context and organization-scoped integration | Upcoming |
 | Days 6–8 | Dynamic tenant database connections | Upcoming |
 | Days 9–10 | Usage events and idempotency | Upcoming |
 | Day 11 | Redis distributed locking | Upcoming |
@@ -527,7 +568,7 @@ LedgerGuard follows these security principles:
 - Passwords must be hashed before storage.
 - JWT secrets must remain private.
 - Protected endpoints must verify authentication tokens.
-- Tenant identity must originate from verified authentication.
+- Tenant identity must originate from verified authentication and validated membership.
 - Clients must not control tenant database selection.
 - User input must be validated before processing.
 - Internal errors and sensitive information must not be exposed to clients.
@@ -584,15 +625,53 @@ Security measures will be expanded as the corresponding modules are implemented.
 - Verified TypeScript compilation and production build.
 - Committed and pushed authentication implementation to GitHub.
 
-**Git milestone commits:**
+### November 17, 2026 — Day 4 Completed
+
+**Organization Management and Multi-Tenant Foundations**
+
+- Created the Organization model.
+- Created the OrganizationMembership model.
+- Implemented organization creation validation using Zod.
+- Implemented the organization creation service and controller.
+- Added the protected organization creation endpoint.
+- Implemented atomic organization and owner-membership creation using MongoDB transactions.
+- Added unique organization slug enforcement.
+- Added unique user-organization membership enforcement.
+- Implemented organization membership middleware.
+- Added organization role checks for owner, admin, and member.
+- Added organization status verification.
+- Tested organization creation and duplicate slug handling.
+- Tested authentication requirements and invalid organization data.
+- Verified that non-members cannot access another organization's protected resources.
+- Verified TypeScript compilation and production build.
+- Updated API documentation, database design, development log, and README.
+
+**Day 4 implementation commit created:**
+
+```text
+5: Implement organization management and membership authorization
+```
+
+**Documentation commit pushed:**
+
+```text
+Update organization API and database documentation
+```
+
+### Git Milestone Commits
 
 ```text
 1: Set up LedgerGuard backend and frontend integration
+
 2: Configure strict TypeScript and backend error handling
+
 3: Implement API versioning and request logging
+
 4: Implement user authentication and JWT authorization
+
+5: Implement organization management and membership authorization
 ```
 
 ---
 
-**LedgerGuard is actively under development.** This README will be maintained alongside implementation so that the documented architecture, features, API endpoints, and project progress accurately reflect the codebase.
+**LedgerGuard is actively under development.** This README will be maintained alongside implementation so that the documented architecture, features, API endpoints, project structure, and development progress accurately reflect the codebase.
