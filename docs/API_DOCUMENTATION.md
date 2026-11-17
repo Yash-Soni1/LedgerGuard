@@ -16,7 +16,7 @@ http://localhost:5000
 
 **Backend Framework:** Express.js
 
-**Status:** Authentication and health-check endpoints implemented.
+**Status:** Health-check, authentication, organization creation, and organization membership authorization implemented.
 
 ---
 
@@ -228,6 +228,80 @@ The JWT authentication middleware verifies the token before allowing access to t
 
 ---
 
+### 3.5 Create Organization
+
+Creates a new organization and automatically assigns the authenticated user as its owner.
+
+| Property | Value |
+|---|---|
+| Method | POST |
+| Endpoint | `/api/v1/organizations` |
+| Authentication | Required |
+| Success Status | 201 |
+| Status | Implemented |
+
+**Request headers:**
+
+```http
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+```
+
+**Request body:**
+
+```json
+{
+  "name": "Acme Technologies",
+  "slug": "acme-technologies"
+}
+```
+
+**Successful response:**
+
+```json
+{
+  "success": true,
+  "message": "Organization created successfully",
+  "data": {
+    "organization": {
+      "_id": "ORGANIZATION_ID",
+      "name": "Acme Technologies",
+      "slug": "acme-technologies",
+      "status": "active"
+    }
+  }
+}
+```
+
+**Possible error statuses:**
+
+- `400` — Invalid organization data.
+- `401` — Authentication required.
+- `409` — Organization slug already exists.
+
+Organization creation and owner membership assignment are performed within a MongoDB transaction.
+
+### Organization Membership Authorization
+
+LedgerGuard implements middleware for organization-level access control.
+
+The middleware:
+
+- Validates the organization ID.
+- Checks whether the authenticated user belongs to the organization.
+- Optionally verifies the user's organization role (`owner`, `admin`, or `member`).
+- Rejects suspended or unavailable organizations.
+- Stores the authorized organization ID and role in request-local state.
+
+**Possible error statuses:**
+
+- `400` — Invalid organization ID.
+- `403` — Organization access denied.
+- `403` — Insufficient organization permissions.
+- `404` — Organization not found or inactive.
+
+**Verification:** Tested successfully with two users. A non-member received `403 Forbidden`, while the organization owner received access with the `owner` role.
+
 ## 4. Authentication and Security
 
 LedgerGuard currently uses JSON Web Tokens (JWT) for authentication.
@@ -276,13 +350,13 @@ Internal error details are logged on the server rather than exposed in productio
 
 ## 6. Planned API Modules
 
-The following modules contain functionality that is planned but not yet implemented.
+The following modules contain functionality that is planned or partially implemented.
 
 | Module | Planned Functionality | Status |
 |---|---|---|
 | Authentication | Register and login implemented; logout planned | Partially implemented |
 | Users | User profile and account management | Planned |
-| Organizations | Create and manage organizations | Planned |
+| Organizations | Organization creation and membership authorization; further management features planned | Partially implemented |
 | Members | Invitations and role management | Planned |
 | Usage | Submit and retrieve usage events | Planned |
 | Billing | Billing and usage summaries | Planned |
