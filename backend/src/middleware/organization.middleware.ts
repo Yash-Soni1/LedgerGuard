@@ -1,10 +1,12 @@
 
 import type { RequestHandler } from "express";
 import mongoose from "mongoose";
+
 import Organization from "../models/Organization.js";
 import OrganizationMembership, {
     type OrganizationMembershipRole,
 } from "../models/OrganizationMembership.js";
+
 import { AppError } from "../utils/AppError.js";
 
 export const requireOrganizationMembership = (
@@ -12,7 +14,10 @@ export const requireOrganizationMembership = (
 ): RequestHandler => {
     return async (req, res, next) => {
         const userId = res.locals.userId as string | undefined;
-        const organizationId = req.params.organizationId;
+
+        const organizationId = Array.isArray(req.params.organizationId)
+            ? req.params.organizationId[0]
+            : req.params.organizationId;
 
         if (
             typeof organizationId !== "string" ||
@@ -23,13 +28,6 @@ export const requireOrganizationMembership = (
 
         if (!userId) {
             throw new AppError("Authentication required", 401);
-        }
-
-        if (
-            !organizationId ||
-            !mongoose.Types.ObjectId.isValid(organizationId)
-        ) {
-            throw new AppError("Invalid organization ID", 400);
         }
 
         const membership = await OrganizationMembership.findOne({
